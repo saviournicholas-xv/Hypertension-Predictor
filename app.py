@@ -14,6 +14,8 @@ import firebase_admin
 import extra_streamlit_components as argostick
 import os
 import io
+import re
+import html
 
 from firebase_admin import credentials, auth, firestore
 from sklearn.metrics import roc_curve, roc_auc_score
@@ -91,12 +93,24 @@ def logout():
 # =========================
 # AUTHENTICATION UI
 # =========================
+def is_valid_email(email):
+    # RFC 5322 Compliant Email Regex Validation
+    email_regex = r"^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$"
+    return re.match(email_regex, email.strip()) is not None
+
+def sanitize_string(text):
+    # Strip whitespace and escape HTML tags to prevent XSS payloads in Usernames
+    if text:
+        cleaned = text.strip()
+        return html.escape(cleaned)
+    return ""
+
 def auth_ui():
     st.title("Hypertension Predictor - Access")
 
     if st.session_state['auth_mode'] == 'Login':
         st.subheader("Login")
-        email = st.text_input("Email Address")
+        email = st.text_input("Email Address").strip()
         password = st.text_input("Password", type='password')
 
         col1, col2 = st.columns([1, 4])
@@ -104,13 +118,13 @@ def auth_ui():
             if st.button("Login", key="login_btn_main"):
                 if not email or not password:
                     st.error("Please enter both email and password.")
+                elif not is_valid_email(email):
+                    st.error("Please enter a valid email address.")
                 else:
                     try:
-                        # Fetch user details from Firebase
+                        # Use sanitized email string
                         user = auth.get_user_by_email(email)
  
-                        # Save the display_name to session_state
-                        # If for some reason display_name is empty, fallback to the email prefix
                         st.session_state['username'] = user.display_name if user.display_name else email.split('@')[0]
                         st.session_state['user_auth'] = user.email
                         st.success("Log in successful!")
@@ -118,7 +132,8 @@ def auth_ui():
                         st.rerun()
  
                     except Exception as e:
-                        st.error("Log in failed, please enter correct credentials.")
+                        # Generic error prevents attackers from discovering registered emails via brute force
+                        st.error("Log in failed. Please verify your credentials.")
  
         st.write("Do not have an account?")
         if st.button("Sign Up", key="go_to_signup_btn"):
@@ -131,32 +146,42 @@ def auth_ui():
         new_email = st.text_input("Email", key="reg_email")
         new_password = st.text_input("Password", type='password', key="reg_pass")
  
-        # Use a unique key to prevent the duplication
         if st.button("Create Account", key="signup_main_btn"):
-            # 1. Check if fields are empty
-            if not new_user.strip() or not new_email.strip() or not new_password.strip():
-                st.error("Please enter your credentials")
+            # Sanitize inputs instantly before checking logic rules
+            clean_user = sanitize_string(new_user)
+            clean_email = new_email.strip()
+            
+            if not clean_user or not clean_email or not new_password:
+                st.error("All credential fields are required.")
+            elif len(clean_user) < 3 or len(clean_user) > 20:
+                st.error("Username must be between 3 and 20 characters long.")
+            elif not is_valid_email(clean_email):
+                st.error("Please enter a valid email address.")
+            elif len(new_password) < 8:
+                st.error("For security, passwords must be at least 8 characters long.")
             else:
-                # 2. Proceed to Firebase only if fields are filled
                 try:
                     user = auth.create_user(
-                        email=new_email,
+                        email=clean_email,
                         password=new_password,
-                        display_name=new_user
-                        )
+                        display_name=clean_user
+                    )
                     st.success("✅ Account created successfully! Redirecting to login...")
                     time.sleep(2)
                     st.session_state['auth_mode'] = 'Login'
                     st.rerun()
                 except Exception as e:
-                    # Handle specific Firebase errors (e.g., email already exists)
-                    st.error(f"Registration failed: {str(e)}")
+                    error_msg = str(e)
+                    # Abstract infrastructure details so system errors aren't leaked
+                    if "EMAIL_EXISTS" in error_msg or "already in use" in error_msg:
+                        st.error("This email address is already registered.")
+                    else:
+                        st.error("Registration failed. Please contact support if this persists.")
 
-        # Separate button to go back
         if st.button("Back to Login", key="back_to_login"):
             st.session_state['auth_mode'] = 'Login'
             st.rerun()
-
+            
 # =========================
 # MAIN APP CONTENT
 # =========================
@@ -638,16 +663,3 @@ else:
         st.toggle("Auto-play", key="auto_play")
         
     
-    # =========================
-    # HIDE STREAMLIT STYLES
-    # =========================
-    # hide_st_style = """
-    #             <style>
-    #             #MainMenu {visibility: hidden;}   
-    #             footer {visibility: hidden;}   
-    #             header {visibility: hidden;}   
-    #             </style>
-    #             """
-    # st.markdown(hide_st_style, unsafe_allow_html=True)
-        
-
