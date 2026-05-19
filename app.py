@@ -68,10 +68,10 @@ if 'auth_mode' not in st.session_state:
 cookie_manager = argostick.CookieManager()
 
 def logout():
-    # 1. Clear the session state completely
+    # Clear the session state completely
     st.session_state.clear()
     
-    # 2. SAFELY delete cookies only if they exist to avoid KeyError
+    # Safely delete cookies only if they exist to avoid KeyError
     try:
         # Check if cookie manager is initialized and has the key
         if cookie_manager.get("user_auth_cookie"):
@@ -82,11 +82,11 @@ def logout():
         # Ignore errors if cookies are already gone
         pass
     
-    # 3. Re-initialize minimal state for the login page
+    # Re-initialize minimal state for the login page
     st.session_state['auth_mode'] = 'Login'
     st.session_state['user_auth'] = None
     
-    # 4. Final refresh
+    # Final refresh
     st.rerun()
 
     
@@ -132,7 +132,7 @@ def auth_ui():
                         st.rerun()
  
                     except Exception as e:
-                        # Generic error prevents attackers from discovering registered emails via brute force
+                        # Generic error message
                         st.error("Log in failed. Please verify your credentials.")
  
         st.write("Do not have an account?")
@@ -176,15 +176,16 @@ def auth_ui():
                     
                     # Check if the account already exists
                     if "EMAIL_EXISTS" in error_msg or "already in use" in error_msg:
-                        # 1. Warn the user with a notification toast
+                        # Warn the user with a notification toast
                         st.toast("⚠️ This email is already registered! Redirecting to login...")
                         time.sleep(3.0) # Short pause so they can read the toast notice
                         
-                        # 2. Redirect them automatically to the Login page
+                        # Redirect them automatically to the Login page
                         st.session_state['auth_mode'] = 'Login'
                         st.rerun()
                     else:
                         st.error("Registration failed. Please contact support if this persists.")
+            
             
 # =========================
 # MAIN APP CONTENT
@@ -218,7 +219,7 @@ else:
         st.caption("v1.0.2 | Secure Model")
 
 
-    # --- YOUR ORIGINAL APP LOGIC STARTS HERE ---
+    # APP LOGIC 
     
     # Load models (Inside the 'else' so they don't load unnecessarily on auth page)
     @st.cache_resource
@@ -247,7 +248,7 @@ else:
         # Get the username from session state, default to "User" if not found
         current_user = st.session_state.get('username', 'User')
       
-        # 1. CSS for Stylish Cards with Black Text
+        # CSS for Stylish Cards with Black Text
         st.markdown("""
         <style>
         .main-card {
@@ -268,7 +269,7 @@ else:
         </style>
         """, unsafe_allow_html=True)
 
-        # 2. Hero Section
+        # Hero Section
         col_h1, col_h2 = st.columns([2, 1])
         with col_h1:
             # This line now displays your custom username
@@ -282,7 +283,7 @@ else:
         
         st.divider()
 
-        # 3. Info Cards
+        # Info Cards
         st.markdown("### Platform Capabilities")
         c1, c2, c3 = st.columns(3)
 
@@ -312,7 +313,7 @@ else:
 
         st.divider()
 
-        # 4. Global Statistics Banner
+        # Global Statistics Banner
         st.markdown("### Why it Matters")
         m1, m2, m3 = st.metrics_adc = st.columns(3)
         m1.metric("Global Prevalence", "1.28 Billion", "+10%")
@@ -349,7 +350,7 @@ else:
             ex = st.selectbox("Exercise Level", ["Low", "Moderate", "High"])
             smoke = st.selectbox("Smoking Status", ["Smoker", "Non-Smoker"])
 
-        # --- PREDICTION LOGIC ---
+        # PREDICTION LOGIC 
         if st.button("Prediction"): 
             input_data = pd.DataFrame([{
                 'Age': age, 'Salt_Intake': salt, 'Stress_Score': stress,
@@ -377,7 +378,7 @@ else:
             st.session_state["model_used"] = model_used
             st.session_state["current_auc"] = current_auc
 
-        # --- DISPLAY RESULTS (Persist even after PDF generation) ---
+        # DISPLAY RESULTS (Persists even after PDF generation)
         if "prediction" in st.session_state:
             st.divider()
             col_res1, col_res2 = st.columns([1, 1])
@@ -411,12 +412,12 @@ else:
                 fig_gauge.update_layout(height=300, margin=dict(l=20, r=20, t=40, b=20))
                 st.plotly_chart(fig_gauge, use_container_width=True)
 
-        # --- PDF EXPORT FUNCTION ---
+        # PDF EXPORT FUNCTION 
         def export_pdf_report(input_data, prediction, probability):
-            # 1. Create an in-memory buffer
+            # Create an in-memory buffer
             buffer = io.BytesIO()
             
-            # 2. Build the PDF inside the buffer instead of a file
+            # Build the PDF inside the buffer instead of a file
             doc = SimpleDocTemplate(buffer, pagesize=letter)
             styles = getSampleStyleSheet()
             elements = []
@@ -458,24 +459,24 @@ else:
             elements.append(Spacer(1, 15))
             elements.append(Paragraph("This report is generated by an AI-based hypertension prediction system. Please consult a medical professional for clinical diagnosis.", styles['Italic']))
 
-            # 3. Build the document
+            # Build the document
             doc.build(elements)
             
-            # 4. Get the value from the buffer and return it
+            # Get the value from the buffer and return it
             pdf_value = buffer.getvalue()
             buffer.close()
             return pdf_value
 
-        # --- EXPORT SECTION ---
+        # EXPORT SECTION 
         if "prediction" in st.session_state:
-        # 1. Prepare the PDF data in the background
+        # Prepare the PDF data in the background
             pdf_data = export_pdf_report(
                 st.session_state["input_data"],
                 st.session_state["prediction"],
                 st.session_state["probability"]
             )
 
-            # 2. Show the real download button
+            # Show the real download button
             st.download_button(
                 label="Download PDF Report",
                 data=pdf_data,
@@ -483,7 +484,7 @@ else:
                 mime="application/pdf"
             )
             
-            # 3. Show the success message
+            # Show the success message
             st.info("PDF report is ready for download!")
 
         else:
@@ -495,7 +496,7 @@ else:
             
     if selected == "Data Visualization":
         if "input_data" in st.session_state:
-            # 1. EXTRACT DATA
+            # EXTRACT DATA
             data = st.session_state["input_data"]
             v_age = data['Age'].iloc[0]
             v_salt = data['Salt_Intake'].iloc[0]
@@ -528,7 +529,7 @@ else:
                 fig_pie.update_layout(height=350, margin=dict(t=20, b=20, l=20, r=20))
                 st.plotly_chart(fig_pie, use_container_width=True)
 
-            # ROW 2: Scatter Plot and Radar Chart (Side-by-Side)
+            # ROW 2: Scatter Plot and Radar Chart 
             st.divider() 
             col_v3, col_v4 = st.columns(2)
 
@@ -612,7 +613,7 @@ else:
         </style>
         """, unsafe_allow_html=True)
         
-        # 1. Setup the content
+        # Setup the content
         slides = [
             {"title": "Breakdown", "content": "This is a detailed breakdown of the most critical health tips for hypertension, categorized by preventive and corrective measures."},
             {"title": "Dietary Management", "content": "The most effective dietary intervention is the DASH - Dietary Approaches to Stop Hypertension diet. It focuses on nutrient-dense foods that naturally lower BP. Limit daily sodium intake. Avoid salty foods. Potassium helps the kidneys excrete sodium and eases tension in blood vessel walls. Incorporate bananas, sweet potatoes, spinach, and beans. Ensure adequate intake of low-fat dairy and nuts, rich in magnesium and calcium which support vascular health."},
@@ -623,13 +624,13 @@ else:
             {"title": "Medical Note", "content": "Always consult with your primary care physician before starting a new exercise regimen or making drastic changes to your diet, especially if you are already on prescribed medication."}
         ]
 
-        # 2. Initialize Session State
+        # Initialize Session State
         if 'slide_idx' not in st.session_state:
             st.session_state.slide_idx = 0
         if 'auto_play' not in st.session_state:
             st.session_state.auto_play = True
         
-        # 3. Create the Slide "Card"
+        # Create the Slide "Card"
         @st.fragment(run_every=10.0 if st.session_state.get('auto_play') else None)
         def slide_viewer():
             # Current Slide Content wrapped in the new styled div
