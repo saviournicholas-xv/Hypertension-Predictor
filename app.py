@@ -166,21 +166,25 @@ def auth_ui():
                         password=new_password,
                         display_name=clean_user
                     )
-                    st.success("✅ Account created successfully! Redirecting to login...")
-                    time.sleep(2)
+                    
+                    st.toast("✅ Account created successfully!")
                     st.session_state['auth_mode'] = 'Login'
                     st.rerun()
+                    
                 except Exception as e:
                     error_msg = str(e)
-                    # Abstract infrastructure details so system errors aren't leaked
+                    
+                    # Check if the account already exists
                     if "EMAIL_EXISTS" in error_msg or "already in use" in error_msg:
-                        st.error("This email address is already registered.")
+                        # 1. Warn the user with a notification toast
+                        st.toast("⚠️ This email is already registered! Redirecting to login...")
+                        time.sleep(3.0) # Short pause so they can read the toast notice
+                        
+                        # 2. Redirect them automatically to the Login page
+                        st.session_state['auth_mode'] = 'Login'
+                        st.rerun()
                     else:
                         st.error("Registration failed. Please contact support if this persists.")
-
-        if st.button("Back to Login", key="back_to_login"):
-            st.session_state['auth_mode'] = 'Login'
-            st.rerun()
             
 # =========================
 # MAIN APP CONTENT
