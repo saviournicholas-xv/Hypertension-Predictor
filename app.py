@@ -28,9 +28,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 
-# =========================
 # FIREBASE INITIALIZATION
-# =========================
 
 # Load variables from .env
 load_dotenv()
@@ -55,13 +53,13 @@ if not firebase_admin._apps:
 
 db = firestore.client()
 
-# =========================
+
 # SESSION STATE MANAGEMENT
-# =========================
+
 if 'user_auth' not in st.session_state:
     st.session_state['user_auth'] = None
 if 'auth_mode' not in st.session_state:
-    st.session_state['auth_mode'] = 'Login'
+    st.session_state['auth_mode'] = 'Signup'
 
 
 # Initialize the Cookie Manager
@@ -88,11 +86,31 @@ def logout():
     
     # Final refresh
     st.rerun()
-
     
-# =========================
+
 # AUTHENTICATION UI
-# =========================
+
+# Fetch the Web API key for secure verification
+FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY")
+
+def verify_user_credentials(email, password):
+    url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
+    payload = {
+        "email": email,
+        "password": password,
+        "returnSecureToken": True
+    }
+    
+    response = requests.post(url, json=payload)
+    response_data = response.json()
+    
+    if response.status_code != 200:
+        # If Firebase rejected the email/password combination
+        error_message = response_data.get("error", {}).get("message", "AUTHENTICATION_FAILED")
+        raise Exception(error_message)
+        
+    return response_data
+
 def is_valid_email(email):
     # RFC 5322 Compliant Email Regex Validation
     email_regex = r"^[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-zA-Z0-9!#$%&'*+/=?^_`{|}~-]+)*@(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?\.)+[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?$"
@@ -110,8 +128,8 @@ def auth_ui():
 
     if st.session_state['auth_mode'] == 'Login':
         st.subheader("Login")
-        email = st.text_input("Email Address").strip()
-        password = st.text_input("Password", type='password')
+        email = st.text_input("Email Address", key="login_email").strip()
+        password = st.text_input("Password", type='password', key="login_pass")
 
         col1, col2 = st.columns([1, 4])
         with col1:
@@ -122,7 +140,10 @@ def auth_ui():
                     st.error("Please enter a valid email address.")
                 else:
                     try:
-                        # Use sanitized email string
+                        # Securely verify the password against Firebase Auth
+                        auth_data = verify_user_credentials(email, password)
+                        
+                        # If it succeeds, fetch profile info safely using Admin SDK
                         user = auth.get_user_by_email(email)
  
                         st.session_state['username'] = user.display_name if user.display_name else email.split('@')[0]
@@ -132,22 +153,20 @@ def auth_ui():
                         st.rerun()
  
                     except Exception as e:
-                        # Generic error message
+                        # Catching bad passwords, bad emails, or connectivity errors safely
                         st.error("Log in failed. Please verify your credentials.")
- 
-        st.write("Do not have an account?")
-        if st.button("Sign Up", key="go_to_signup_btn"):
-            st.session_state['auth_mode'] = 'Signup'
-            st.rerun()
+            
+            if st.button("Back to Signup", key="link_to_signup", help="Click to sign up"):
+                st.session_state['auth_mode'] = 'Signup'
+                st.rerun()
 
     else: # Sign-up mode
-        st.subheader("Create Account")
+        st.subheader("Sign Up")
         new_user = st.text_input("Username", key="reg_user")
         new_email = st.text_input("Email", key="reg_email")
         new_password = st.text_input("Password", type='password', key="reg_pass")
- 
+        
         if st.button("Create Account", key="signup_main_btn"):
-            # Sanitize inputs instantly before checking logic rules
             clean_user = sanitize_string(new_user)
             clean_email = new_email.strip()
             
@@ -173,23 +192,21 @@ def auth_ui():
                     
                 except Exception as e:
                     error_msg = str(e)
-                    
-                    # Check if the account already exists
                     if "EMAIL_EXISTS" in error_msg or "already in use" in error_msg:
-                        # Warn the user with a notification toast
                         st.toast("⚠️ This email is already registered! Redirecting to login...")
-                        time.sleep(3.0) # Short pause so they can read the toast notice
-                        
-                        # Redirect them automatically to the Login page
+                        time.sleep(1.5)
                         st.session_state['auth_mode'] = 'Login'
                         st.rerun()
                     else:
-                        st.error("Registration failed. Please contact support if this persists.")
+                        st.error("Registration failed. Please retry!")
+        
+        if st.button("Already have an account? Login here", key="link_to_login", help="Click to login"):
+            st.session_state['auth_mode'] = 'Login'
+            st.rerun()
             
-            
-# =========================
+
 # MAIN APP CONTENT
-# =========================
+
 if st.session_state['user_auth'] is None:
     auth_ui()
 else:
@@ -198,22 +215,20 @@ else:
     if st.sidebar.button("Logout"):
         logout()
         
-    # =========================
+    
     # SIDEBAR - ABOUT SECTION
-    # =========================
+    
     with st.sidebar:
         st.divider() # Adds a clean visual line
         with st.expander("About The Prediction Logic"):
             st.markdown("""
             This system uses a **Cascaded ML Model Architecture** to ensure high accuracy and reliability:
             
-            1. **Screening: (Logistic Regression)**  
+            1. **Screening(Logistic Regression)**  
             The app first analyzes your data using a linear model. If the probability of hypertension is very low or very high, it provides an immediate result.
             
-            2. **Deep Analysis: (Random Forest)**  
-            If the initial screening finds the case "uncertain" (near the 50% threshold), it automatically triggers a Random Forest model. This model looks for complex patterns and non-linear relationships in your health data.
-            
-            **Goal:** It uses two rounds of checking to catch tricky cases that might otherwise be missed — similar to how a doctor might seek a second opinion when a diagnosis isn't clear-cut..
+            2. **Deep Analysis(Random Forest)**  
+            If the initial screening finds the case "uncertain", it automatically triggers a second model which looks for complex patterns and non-linear relationships in your health data and generates a prediction.
             """)
         
         st.caption("v1.0.2 | Secure Model")
@@ -273,13 +288,13 @@ else:
         col_h1, col_h2 = st.columns([2, 1])
         with col_h1:
             # This line now displays your custom username
-            st.markdown(f"# Welcome, {current_user}! 👋")
+            st.markdown(f"# Hi, {current_user}! 👋")
         
             st.markdown("""
-            ### Empowering Healthcare Through Machine Learning and AI.
-            Welcome to the **Hypertension Prediction System**. This platform uses advanced machine learning to help identify high blood pressure risks early. Navigate through the tabs to input patient data, visualize risk factors, and receive AI-driven health recommendations.
+            Welcome to the **Hypertension Prediction System**. This platform empowers healthcare by using advanced machine learning to help identify high blood pressure risks early. Navigate through the tabs to input patient data, visualize risk factors, and receive AI-driven health recommendations.
             """)
         
+        st.info("To Get Started, Go To The Patient Data Tab")
         
         st.divider()
 
@@ -320,8 +335,6 @@ else:
         m2.metric("Awareness Gap", "46%", "High Risk")
         m3.metric("System Accuracy", "94.2%", "Model v1.0.2")
         
-        
-        st.success("To Get Started, Go To The Patient Data Tab")
                 
         st.markdown("""
         ---
@@ -492,8 +505,7 @@ else:
             if st.button("Download PDF Report"):
                 st.error("⚠️ Please run the prediction first to generate your report!")
             
-                    
-            
+                                
     if selected == "Data Visualization":
         if "input_data" in st.session_state:
             # EXTRACT DATA
@@ -568,7 +580,7 @@ else:
                 st.plotly_chart(fig_radar, use_container_width=True)
 
         else:
-            st.warning("⚠️ Please go to the **Patient Data** tab and click 'Prediction' to generate your personalized charts.")
+            st.info("Please go to the **Patient Data** tab and click 'Prediction' to generate your personalized charts.")
         
             
     if selected == "Recommendations":
@@ -616,10 +628,10 @@ else:
         # Setup the content
         slides = [
             {"title": "Breakdown", "content": "This is a detailed breakdown of the most critical health tips for hypertension, categorized by preventive and corrective measures."},
-            {"title": "Dietary Management", "content": "The most effective dietary intervention is the DASH - Dietary Approaches to Stop Hypertension diet. It focuses on nutrient-dense foods that naturally lower BP. Limit daily sodium intake. Avoid salty foods. Potassium helps the kidneys excrete sodium and eases tension in blood vessel walls. Incorporate bananas, sweet potatoes, spinach, and beans. Ensure adequate intake of low-fat dairy and nuts, rich in magnesium and calcium which support vascular health."},
+            {"title": "Dietary Management", "content": "Focus on nutrient-dense foods that naturally lower BP. Limit daily sodium intake. Avoid salty foods. Potassium helps the kidneys excrete sodium and eases tension in blood vessel walls. Incorporate bananas, sweet potatoes, spinach, and beans. Ensure adequate intake of low-fat dairy and nuts, rich in magnesium and calcium which support vascular health."},
             {"title": "Regular Exercise", "content": "Weight and blood pressure have a linear relationship; as weight increases, BP typically follows. Aim for at least 150 minutes of moderate-intensity aerobic activity per week e.g., brisk walking, swimming, or cycling. Incorporate physical strength training atleast 2–3 times a week."},
             {"title": "Substance Moderation", "content": "Chemical stimulants and depressants have a profound impact on arterial pressure. Every cigarette causes a temporary spike in BP and in some cases caffeine too. Long-term smoking destroys the lining of the artery walls, leading to atherosclerosis. Excessive alcohol can raise BP and reduce the effectiveness of many medications."},
-            {"title": "Stress Mitigation", "content": "Stress is a Silent Trigger. Chronic stress keeps the body in a fight or flight state, producing hormones like cortisol and adrenaline that constrict blood vessels. Observe sleep hygiene. Aim for 7–9 hours of quality sleep."},
+            {"title": "Stress Mitigation", "content": "Stress is a silent trigger. Chronic stress keeps the body in a fight or flight state, producing hormones like cortisol and adrenaline that constrict blood vessels. Observe sleep hygiene. Aim for 7–9 hours of quality sleep."},
             {"title": "Clinical Adherence", "content": "When lifestyle changes aren't enough, medical intervention becomes the corrective necessity. Take prescribed antihypertensives like ACE inhibitors, Beta-blockers, Diuretics, etc at the same time every day. Never skip doses even if you feel fine. Keep a BP log. Regular screenings for the target organs — the heart, brain, kidneys, and eyes are essential to catch early signs of organ strain."},
             {"title": "Medical Note", "content": "Always consult with your primary care physician before starting a new exercise regimen or making drastic changes to your diet, especially if you are already on prescribed medication."}
         ]
