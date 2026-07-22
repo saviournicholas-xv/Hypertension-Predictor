@@ -68,23 +68,8 @@ cookie_manager = argostick.CookieManager()
 def logout():
     # Clear the session state completely
     st.session_state.clear()
-    
-    # Safely delete cookies only if they exist to avoid KeyError
-    try:
-        # Check if cookie manager is initialized and has the key
-        if cookie_manager.get("user_auth_cookie"):
-            cookie_manager.delete("user_auth_cookie")
-        if cookie_manager.get("username_cookie"):
-            cookie_manager.delete("username_cookie")
-    except Exception:
-        # Ignore errors if cookies are already gone
-        pass
-    
-    # Re-initialize minimal state for the login page
     st.session_state['auth_mode'] = 'Login'
     st.session_state['user_auth'] = None
-    
-    # Final refresh
     st.rerun()
     
 
@@ -92,8 +77,10 @@ def logout():
 
 # Fetch the Web API key for secure verification
 FIREBASE_WEB_API_KEY = os.getenv("FIREBASE_WEB_API_KEY")
-
 def verify_user_credentials(email, password):
+    if not FIREBASE_WEB_API_KEY:
+        raise Exception("FIREBASE_WEB_API_KEY is missing from environment variables.")
+        
     url = f"https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key={FIREBASE_WEB_API_KEY}"
     payload = {
         "email": email,
@@ -103,13 +90,13 @@ def verify_user_credentials(email, password):
     
     response = requests.post(url, json=payload)
     response_data = response.json()
-    
+        
     if response.status_code != 200:
-        # If Firebase rejected the email/password combination
         error_message = response_data.get("error", {}).get("message", "AUTHENTICATION_FAILED")
         raise Exception(error_message)
         
     return response_data
+    
 
 def is_valid_email(email):
     # RFC 5322 Compliant Email Regex Validation
@@ -220,15 +207,9 @@ else:
     
     with st.sidebar:
         st.divider() # Adds a clean visual line
-        with st.expander("About The Prediction Logic"):
+        with st.expander("Need Help?"):
             st.markdown("""
-            This system uses a **Cascaded ML Model Architecture** to ensure high accuracy and reliability:
-            
-            1. **Screening(Logistic Regression)**  
-            The app first analyzes your data using a linear model. If the probability of hypertension is very low or very high, it provides an immediate result.
-            
-            2. **Deep Analysis(Random Forest)**  
-            If the initial screening finds the case "uncertain", it automatically triggers a second model which looks for complex patterns and non-linear relationships in your health data and generates a prediction.
+            To get started, go to the patient data tab!
             """)
         
         st.caption("v1.0.2 | Secure Model")
@@ -291,11 +272,22 @@ else:
             st.markdown(f"# Hi, {current_user}! 👋")
         
             st.markdown("""
-            Welcome to the **Hypertension Prediction System**. This platform empowers healthcare by using advanced machine learning to help identify high blood pressure risks early. Navigate through the tabs to input patient data, visualize risk factors, and receive AI-driven health recommendations.
+            Welcome to the **Hypertension Prediction System**. This system empowers healthcare by using advanced machine learning to help identify high blood pressure risks early. Navigate through the tabs to input patient data, visualize risk factors, and receive AI-driven health recommendations.
             """)
         
         st.info("To Get Started, Go To The Patient Data Tab")
         
+        st.divider()
+        
+        st.markdown("### About The Prediction Logic")
+        st.markdown("""
+                This system uses a **Cascaded ML Model Architecture** to ensure high accuracy and reliability:
+                    
+                **Screening(Logistic Regression)**. The app first analyzes your data using a linear model. If the probability of hypertension is very low or very high, it provides an immediate result.
+                    
+                **Deep Analysis(Random Forest)**. If the initial screening finds the case "uncertain", it automatically triggers the second model which looks for complex patterns and non-linear relationships in your health data and generates a prediction.
+                """)
+                
         st.divider()
 
         # Info Cards
@@ -679,4 +671,11 @@ else:
         # Toggle Auto-play
         st.toggle("Auto-play", key="auto_play")
         
+        st.markdown("""
+            ---
+            ⚠️ **Medical Disclaimer**
+        
+            This system is an AI-assisted tool and should not replace professional medical diagnosis.
+            Always consult a qualified healthcare provider.
+            """)
     
