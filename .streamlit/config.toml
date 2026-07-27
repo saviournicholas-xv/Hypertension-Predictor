@@ -1,0 +1,11 @@
+ [theme]
+# Primary color controls active navigation menu tabs, buttons, sliders, and highlights
+primaryColor = "#032504"           
+
+# Optional: Adjust secondary background and sidebar styling
+backgroundColor = "#FFFFFF"       # Main background color
+secondaryBackgroundColor = "#d6e2c1" # Sidebar & container background
+textColor = "#1D1617"             # Main text color
+font = "sans serif"
+
+                   
