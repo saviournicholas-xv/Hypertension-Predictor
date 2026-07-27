@@ -33,8 +33,10 @@ from dotenv import load_dotenv
 # Load variables from .env
 load_dotenv()
 
-if not firebase_admin._apps:
-    firebase_config = {
+@st.cache_resource
+def init_firebase():
+    if not firebase_admin._apps:
+        firebase_config = {
         "type": os.getenv("FIREBASE_TYPE"),
         "project_id": os.getenv("FIREBASE_PROJECT_ID"),
         "private_key_id": os.getenv("FIREBASE_PRIVATE_KEY_ID"),
@@ -46,13 +48,13 @@ if not firebase_admin._apps:
         "auth_provider_x509_cert_url": os.getenv("FIREBASE_AUTH_PROVIDER_X509_CERT_URL"),
         "client_x509_cert_url": os.getenv("FIREBASE_CLIENT_X509_CERT_URL"),
         "universe_domain": os.getenv("FIREBASE_UNIVERSE_DOMAIN")
-    }
-    
-    cred = credentials.Certificate(firebase_config)
-    firebase_admin.initialize_app(cred)
+        }
+        cred = credentials.Certificate(firebase_config)
+        firebase_admin.initialize_app(cred)
+    return firestore.client()
 
-db = firestore.client()
-
+# Run initialization once and get the cached Firestore client
+db = init_firebase()
 
 # SESSION STATE MANAGEMENT
 
@@ -248,10 +250,10 @@ else:
         st.markdown("""
         <style>
         .main-card {
-            background-color: #f8f9fa;
+            background-color: #d6e2c1;
             padding: 20px;
             border-radius: 15px;
-            border-left: 5px solid #FF4B4B;
+            border-left: 5px solid #032504;
             margin-bottom: 20px;
             box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
             color: #000000 !important; /* Forces body text to black */
@@ -275,8 +277,6 @@ else:
             Welcome to the **Hypertension Prediction System**. This system empowers healthcare by using advanced machine learning to help identify high blood pressure risks early. Navigate through the tabs to input patient data, visualize risk factors, and receive AI-driven health recommendations.
             """)
         
-        st.info("To Get Started, Go To The Patient Data Tab")
-        
         st.divider()
         
         st.markdown("### About The Prediction Logic")
@@ -287,7 +287,7 @@ else:
                     
                 **Deep Analysis(Random Forest)**. If the initial screening finds the case "uncertain", it automatically triggers the second model which looks for complex patterns and non-linear relationships in your health data and generates a prediction.
                 """)
-                
+        st.success("To Get Started, Go To The Patient Data Tab")        
         st.divider()
 
         # Info Cards
@@ -297,7 +297,7 @@ else:
         with c1:
             st.markdown("""
             <div class="main-card">
-                <div class="feature-header">🔍 Accurate Prediction</div>
+                <div class="feature-header">  Accurate Prediction</div>
                 Cascaded ML model logic (Logistic Regression + Random Forest) for high-precision diagnosis.
             </div>
             """, unsafe_allow_html=True)
@@ -305,7 +305,7 @@ else:
         with c2:
             st.markdown("""
             <div class="main-card">
-                <div class="feature-header">📊 Visual Analytics</div>
+                <div class="feature-header">  Visual Analytics</div>
                 Interactive Radar and Gauge charts to understand the 'Why' behind every risk score.
             </div>
             """, unsafe_allow_html=True)
@@ -313,7 +313,7 @@ else:
         with c3:
             st.markdown("""
             <div class="main-card">
-                <div class="feature-header">📄 Professional Reports</div>
+                <div class="feature-header">  Professional Reports</div>
                 Instant PDF generation for medical records, including patient metrics and clinical notes.
             </div>
             """, unsafe_allow_html=True)
@@ -395,9 +395,14 @@ else:
                 else:
                     st.success("✅ LOW RISK: No Hypertension")
                 
-                st.info(f"MODEL USED: {st.session_state['model_used']}")
-                st.metric("Model Confidence", f"{st.session_state['probability']:.2%}")
-                st.metric("Model Reliability (AUC)", f"{st.session_state['current_auc']:.2f}")
+                st.success(f"MODEL USED: {st.session_state['model_used']}")
+                
+                # Metrics Tabs 
+                tab1, tab2 = st.tabs(["Model Confidence", "Model Reliability (AUC)"])
+                with tab1:
+                    st.metric("Model Confidence", f"{st.session_state['probability']:.2%}")
+                with tab2:
+                    st.metric("Model Reliability (AUC)", f"{st.session_state['current_auc']:.2f}")
 
             with col_res2:
                 fig_gauge = go.Figure(go.Indicator(
@@ -490,7 +495,7 @@ else:
             )
             
             # Show the success message
-            st.info("PDF report is ready for download!")
+            st.success("PDF report is ready for download!")
 
         else:
             # If no prediction exists, show a regular button that flags the error
@@ -519,8 +524,8 @@ else:
                     'Risk Threshold': [7, 7, 6, 5] 
                 })
                 fig_bar = go.Figure()
-                fig_bar.add_trace(go.Bar(name='Patient Value', x=metrics_df['Metric'], y=metrics_df['Patient Value'], marker_color='#FF4B4B'))
-                fig_bar.add_trace(go.Bar(name='Risk Threshold', x=metrics_df['Metric'], y=metrics_df['Risk Threshold'], marker_color='#E6E9EF'))
+                fig_bar.add_trace(go.Bar(name='Patient Value', x=metrics_df['Metric'], y=metrics_df['Patient Value'], marker_color="#A32020"))
+                fig_bar.add_trace(go.Bar(name='Risk Threshold', x=metrics_df['Metric'], y=metrics_df['Risk Threshold'], marker_color="#2B2B2E"))
                 fig_bar.update_layout(barmode='group', height=350, margin=dict(t=20, b=20, l=20, r=20))
                 st.plotly_chart(fig_bar, use_container_width=True)
 
@@ -546,7 +551,7 @@ else:
                 })
                 fig_scatter = px.scatter(scatter_data, x="Age", y="BMI", color="Type",
                                         size=[10,10,10,10,20], 
-                                        color_discrete_map={'Reference': 'lightgrey', 'YOU': '#FF4B4B'})
+                                        color_discrete_map={'Reference': '#000000', 'YOU': '#D42D2D'})
                 fig_scatter.update_layout(height=400)
                 st.plotly_chart(fig_scatter, use_container_width=True)
 
@@ -565,27 +570,27 @@ else:
                     theta=list(risk_factors.keys()),
                     line_close=True,
                     range_r=[0, 10],
-                    color_discrete_sequence=['#FF4B4B']
+                    color_discrete_sequence=['#D42D2D']
                 )
                 fig_radar.update_traces(fill='toself')
                 fig_radar.update_layout(height=400)
                 st.plotly_chart(fig_radar, use_container_width=True)
 
         else:
-            st.info("Please go to the **Patient Data** tab and click 'Prediction' to generate your personalized charts.")
+            st.success("Please go to the **Patient Data** tab and click 'Prediction' to generate your personalized charts.")
         
             
     if selected == "Recommendations":
         st.markdown("""
         <style>
         .recommendation-card {
-            background-color: #f8f9fa;
+            background-color: #d6e2c1;
             padding: 40px;
             border-radius: 15px;
-            border-left: 10px solid #FF4B4B; /* Thicker red border */
+            border-left: 10px solid #032504;  
             margin-bottom: 20px;
             box-shadow: 2px 2px 10px rgba(0,0,0,0.05);
-            color: #000000 !important; /* Black text */
+            color: #000000 !important; 
             min-height: 200px;
         }
         
@@ -607,12 +612,13 @@ else:
         /* Navigation buttons styling */
         div.stButton > button {
             border-radius: 10px;
+            border-color: #032504;
             transition: all 0.3s ease;
         }
         
         div.stButton > button:hover {
-            border-color: #FF4B4B;
-            color: #FF4B4B;
+            border-color: #032504;
+            color:  #1D1617;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -635,7 +641,7 @@ else:
             st.session_state.auto_play = True
         
         # Create the Slide "Card"
-        @st.fragment(run_every=10.0 if st.session_state.get('auto_play') else None)
+        @st.fragment(run_every=7.0 if st.session_state.get('auto_play') else None)
         def slide_viewer():
             # Current Slide Content wrapped in the new styled div
             curr = slides[st.session_state.slide_idx]
