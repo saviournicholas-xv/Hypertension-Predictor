@@ -33,6 +33,9 @@ from dotenv import load_dotenv
 # Load variables from .env
 load_dotenv()
 
+st.set_page_config(page_title="Hypertension Predictor", layout="wide") 
+st.title("Hypertension Prediction System")
+
 @st.cache_resource
 def init_firebase():
     if not firebase_admin._apps:
@@ -230,10 +233,7 @@ else:
 
     pipeline, log_model, rf_model, metrics = load_resources()
 
-    st.set_page_config(page_title="Hypertension Predictor", layout="wide") 
-    st.title("Hypertension Prediction System")
     
-
     selected = option_menu (
         menu_title=None,
         options=["Home", "Patient Data", "Data Visualization", "Recommendations"],
