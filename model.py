@@ -18,14 +18,14 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import roc_curve
 
-# =========================
+ 
 # LOAD DATA
-# =========================
+ 
 df = pd.read_csv("dataset.csv")
 
-# =========================
+ 
 # CLEAN DATA
-# =========================
+ 
 # Drop duplicates
 df = df.drop_duplicates()
 
@@ -47,9 +47,9 @@ else:
 num_cols = X.select_dtypes(include=['int64', 'float64']).columns
 cat_cols = X.select_dtypes(include=['object']).columns
 
-# =========================
+ 
 # PREPROCESSING PIPELINE
-# =========================
+ 
 # Clean column names
 df.columns = df.columns.str.strip()
 
@@ -92,31 +92,31 @@ preprocessor = ColumnTransformer([
     ("cat", categorical_pipeline, cat_cols)
 ])
 
-# =========================
+ 
 # SPLIT DATA
-# =========================
+ 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-# =========================
+ 
 # APPLY PREPROCESSING
-# =========================
+ 
 X_train = preprocessor.fit_transform(X_train)
 X_test = preprocessor.transform(X_test)
 
-# =========================
+ 
 # TRAIN MODELS
-# =========================
+ 
 log_model = LogisticRegression(max_iter=1000)
 rf_model = RandomForestClassifier(n_estimators=200, random_state=42)
 
 log_model.fit(X_train, y_train)
 rf_model.fit(X_train, y_train)
 
-# =========================
+ 
 # EVALUATION
-# =========================
+ 
 log_pred = log_model.predict(X_test)
 rf_pred = rf_model.predict(X_test)
 
@@ -126,9 +126,9 @@ print("Random Forest Accuracy:", accuracy_score(y_test, rf_pred))
 print("\nLogistic Confusion Matrix:\n", confusion_matrix(y_test, log_pred))
 print("\nRandom Forest Confusion Matrix:\n", confusion_matrix(y_test, rf_pred))
 
-# =========================
+ 
 # SAVE MODELS
-# =========================
+ 
 pickle.dump(preprocessor, open("pipeline.pkl", "wb"))
 pickle.dump(log_model, open("log_model.pkl", "wb"))
 pickle.dump(rf_model, open("rf_model.pkl", "wb"))
@@ -136,9 +136,9 @@ pickle.dump(le, open("label_encoder.pkl", "wb"))
 
 print("✅ Models saved successfully!")
 
-# =========================
+ 
 # CASCADE PREDICTION LOGIC
-# =========================
+ 
 def cascaded_predict(log_model, rf_model, X, threshold=0.7):
     prob = log_model.predict_proba(X)[0][1]
 
@@ -148,11 +148,8 @@ def cascaded_predict(log_model, rf_model, X, threshold=0.7):
         return rf_model.predict(X)[0], "Random Forest"
     
     
-
-
-# =========================
 # EVALUATION (ROC AUC)
-# =========================
+ 
 log_probs = log_model.predict_proba(X_test)[:, 1]
 rf_probs = rf_model.predict_proba(X_test)[:, 1]
 
@@ -198,10 +195,10 @@ def plot_roc_curves(y_true, log_p, rf_p):
     plt.show() # This will open a window with the graph
 # Call the function
 plot_roc_curves(y_test, log_probs, rf_probs)
-
-# =========================
+ 
+ 
 # SAVE METRICS
-# =========================
+ 
 # Create a dictionary of the scores
 model_metrics = {
     "log_auc": log_auc,
@@ -218,10 +215,9 @@ print("✅ AUC and Accuracy metrics saved successfully!")
 
 
 
-    
-# =========================
+ 
 # CONFUSION MATRIX CHART
-# =========================    
+  
 import matplotlib.pyplot as plt
 
 def plot_conf_matrix(cm, title):
