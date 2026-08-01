@@ -33,7 +33,6 @@ from dotenv import load_dotenv
 # Load variables from .env
 load_dotenv()
 
-st.set_page_config(page_title="Hypertension Predictor", layout="wide") 
 st.title("Hypertension Prediction System")
 
 @st.cache_resource
@@ -198,7 +197,7 @@ def auth_ui():
             
 
 # MAIN APP CONTENT
-
+st.set_page_config(page_title="Hypertension Predictor", layout="wide") 
 if st.session_state['user_auth'] is None:
     auth_ui()
 else:
