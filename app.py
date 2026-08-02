@@ -33,8 +33,6 @@ from dotenv import load_dotenv
 # Load variables from .env
 load_dotenv()
 
-st.title("Hypertension Prediction System")
-
 @st.cache_resource
 def init_firebase():
     if not firebase_admin._apps:
@@ -197,7 +195,6 @@ def auth_ui():
             
 
 # MAIN APP CONTENT
-st.set_page_config(page_title="Hypertension Predictor", layout="wide") 
 if st.session_state['user_auth'] is None:
     auth_ui()
 else:
@@ -231,7 +228,10 @@ else:
         return p, l, r, m
 
     pipeline, log_model, rf_model, metrics = load_resources()
-
+    
+    st.set_page_config(page_title="Hypertension Predictor", layout="wide") 
+    st.title("Hypertension Prediction System")
+    
     
     selected = option_menu (
         menu_title=None,
